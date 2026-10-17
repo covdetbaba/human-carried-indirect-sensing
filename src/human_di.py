@@ -3544,18 +3544,16 @@ def figure_3d(res):
         tk3 = anim["t"][k]
         sx = []; sy = []; sz = []
         cx3 = []; cy3 = []; cz3 = []; cw = []
-        bxs = []; bys = []; bzs = []
-        lx = []; ly = []; lz = []; lt = []; rip = []
+        lx = []; ly = []; lz = []; lt = []
         for pi, pt in enumerate(bench_pts):
             zt = zdeck(k, pt["x"], pt["y"])
-            base = zt + 0.06; top = base + 0.6
+            press = 0.06 * (0.5 - 0.5 * np.cos(2 * np.pi * (1.25 * float(tk3) + pi / 3.0)))
+            base = zt + 0.08 - press; top = base + 0.6
             sx += [pt["x"], pt["x"], None]
             sy += [pt["y"], pt["y"], None]
             sz += [top, base + 0.16, None]
             cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(base + 0.02)
             cw.append(-1.0)
-            bxs.append(pt["x"]); bys.append(pt["y"]); bzs.append(zt + 0.01)
-            rip.append((1.2 * float(tk3) + pi / 3.0) % 1.0)
             lx.append(pt["x"]); ly.append(pt["y"]); lz.append(top + 0.12)
             lab = f"shaker {pi + 1}"
             lt.append(lab)
@@ -3568,10 +3566,6 @@ def figure_3d(res):
                   colorscale=[[0, bf_col], [1, bf_col]], showscale=False,
                   name="shaker",
                   showlegend=bool(bench_pts), hoverinfo="text", text=lt))
-        t3.append(go.Scatter3d(x=bxs, y=bys, z=bzs, mode="markers",
-                  marker=dict(color="rgba(0,0,0,0)", size=[4 + 12 * r for r in rip],
-                  symbol="circle-open", line=dict(color=bf_col, width=3)),
-                  hoverinfo="skip", showlegend=False))
         t3.append(go.Scatter3d(x=lx, y=ly, z=lz, mode="text", text=lt,
                   textfont=dict(color=bf_col, size=9), hoverinfo="skip",
                   showlegend=False))

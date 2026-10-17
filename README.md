@@ -38,7 +38,7 @@ F is frequency agreement with the deck mode, P<sub>own</sub> the peak's prominen
 Three graphs: the deck, the smartwatch and the smartphone. For the swept parameter you can
 
 - click a peak on the deck graph to select a mode. It snaps to the nearest maximum and is checked on both devices.
-- see the selected mode shape move in 3D.
+- pick a deck mode from the buttons and see its shape move in 3D. Stop or play it, and drag to rotate.
 - switch on the gait lines to see which device peaks come from the person.
 - read the observability index of every mode, with captured modes marked on the curves.
 - switch on the rigid-floor curves.
@@ -47,11 +47,11 @@ Three graphs: the deck, the smartwatch and the smartphone. For the swept paramet
 
 ## 3. Pages
 
-| Sheet | Page | What it shows |
-|---|---|---|
-| 02 | [Explorer, walking](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-walking.html) | 10 parameters, every pair stored. Spectra, mode selection, mode shapes, gait lines, observability index. |
-| 03 | [Explorer, standing](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-standing.html) | The same for a person standing at mid-span. |
-| 04 to 07 | [Animations](https://covdetbaba.github.io/human-carried-indirect-sensing/walk-2d.html) | Walking and standing, side view and 3D. |
+| Page | What it shows |
+|---|---|
+| [Explorer, walking](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-walking.html) | 10 parameters, every pair stored. Spectra, mode selection, mode shapes, gait lines, observability index. |
+| [Explorer, standing](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-standing.html) | The same for a person standing at mid-span. |
+| [Animations](https://covdetbaba.github.io/human-carried-indirect-sensing/walk-2d.html) | Walking and standing, side view and 3D. |
 
 ## 4. Run it
 

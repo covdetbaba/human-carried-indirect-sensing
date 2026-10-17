@@ -2,85 +2,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Human-carried indirect sensing</title>
 <meta name="description" content="A person carries a smartwatch and a smartphone across a flexible deck. Simulation pages.">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet"><style>
-:root{--paper:#f2eee3;--panel:#faf8f2;--hi:#efe3cf;--ink:#1a2532;--ink2:#4d5966;--rule:#1a2532;
---red:#b83a1f;--grid:rgba(26,37,50,.055);--gridmaj:rgba(26,37,50,.10);--gridline:rgba(26,37,50,.22);
---ramp:#d9a032,#c9572b,#8a2f4f,#2f5585,#121c27;
---mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--sans:"IBM Plex Sans",system-ui,sans-serif;
---cond:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif}
-@media (prefers-color-scheme:dark){:root{--paper:#0e2740;--panel:#113050;--hi:#1a4166;--ink:#e6eef6;--ink2:#a8bccf;
---rule:#9fc0de;--red:#ff8f6e;--grid:rgba(255,255,255,.045);--gridmaj:rgba(255,255,255,.09);--gridline:rgba(230,238,246,.22);
---ramp:#ffd27a,#ff9466,#ef6f9a,#86b6ff,#f2f6fa}}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{color-scheme:light;--paper:#ffffff;--panel:#ffffff;--hi:#eef3fa;--ink:#1b1f24;--ink2:#5b6470;--rule:#d6d9de;
+--soft:#e9ecef;--red:#c23b3b;--blue:#2563a8;--gridline:#e3e6ea;
+--ramp:#e8a33d,#d1495b,#8e3b8f,#2563a8,#1b2a41;
+--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--cond:var(--sans)}
 *{box-sizing:border-box}
-html{background:var(--paper)}
-body{margin:0;color:var(--ink);font:15px/1.55 var(--sans);background-color:var(--paper);
-background-image:linear-gradient(var(--gridmaj) 1px,transparent 1px),linear-gradient(90deg,var(--gridmaj) 1px,transparent 1px),
-linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
-background-size:120px 120px,120px 120px,24px 24px,24px 24px}
-.sheet{max-width:1500px;margin:18px auto;padding:22px 26px 18px;border:1.5px solid var(--rule);outline:1px solid var(--rule);
-outline-offset:5px;background:transparent}
-@media (max-width:700px){.sheet{margin:10px 8px;padding:16px 14px;outline-offset:3px}}
-.head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;border-bottom:1.5px solid var(--rule);padding-bottom:16px}
-.kicker{font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
-h1{font:700 40px/1.05 var(--cond);letter-spacing:.01em;text-transform:uppercase;margin:6px 0 8px}
-@media (max-width:700px){h1{font-size:30px}}
-.lead{margin:0;max-width:640px;color:var(--ink2)}
-.tblock{border-collapse:collapse;font:12px var(--mono);min-width:290px}
-.tblock th,.tblock td{border:1px solid var(--rule);padding:4px 9px;text-align:left}
-.tblock th{text-transform:uppercase;letter-spacing:.08em;font-weight:500;color:var(--ink2);width:84px}
-.nav{display:flex;gap:0;margin:14px 0 4px;border:1px solid var(--rule);width:max-content;max-width:100%;flex-wrap:wrap}
-.nav a{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink);text-decoration:none;padding:6px 14px;border-right:1px solid var(--rule)}
-.nav a:last-child{border-right:0}
-.nav a.cur,.nav a:hover{background:var(--ink);color:var(--paper)}
-section{margin-top:26px}
-h2{font:600 19px var(--cond);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;display:flex;align-items:center;gap:10px}
-h2 .num{display:inline-flex;width:26px;height:26px;border:1.5px solid var(--rule);border-radius:50%;align-items:center;justify-content:center;font:600 12px var(--mono)}
-.hint{font-size:13px;color:var(--ink2);margin:4px 0 10px;max-width:900px}
-button{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--ink);background:var(--panel);
-border:1px solid var(--rule);border-radius:0;padding:6px 12px;cursor:pointer}
-button:hover:not(:disabled),button.on{background:var(--ink);color:var(--paper)}
+html,body{background:#ffffff}
+body{margin:0;color:var(--ink);font:15px/1.6 var(--sans)}
+.sheet{max-width:1440px;margin:0 auto;padding:28px 32px 22px}
+@media (max-width:700px){.sheet{padding:18px 16px}}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:18px}
+.kicker{font:500 13px var(--sans);color:var(--blue)}
+h1{font:600 32px/1.15 var(--sans);margin:4px 0 8px;letter-spacing:-.01em}
+@media (max-width:700px){h1{font-size:26px}}
+.lead{margin:0;max-width:680px;color:var(--ink2)}
+.tblock{border-collapse:collapse;font:13px var(--sans);min-width:280px}
+.tblock th,.tblock td{border-bottom:1px solid var(--soft);padding:5px 10px;text-align:left}
+.tblock th{font-weight:500;color:var(--ink2);width:90px}
+.nav{display:flex;gap:4px;margin:16px 0 4px;flex-wrap:wrap}
+.nav a{font:500 13px var(--sans);color:var(--ink2);text-decoration:none;padding:6px 12px;border:1px solid var(--rule);border-radius:6px;background:#fff}
+.nav a.cur{background:var(--blue);border-color:var(--blue);color:#fff}
+.nav a:hover:not(.cur){border-color:var(--blue);color:var(--blue)}
+section{margin-top:30px}
+h2{font:600 19px var(--sans);margin:0 0 8px;display:flex;align-items:center;gap:10px}
+h2 .num{display:inline-flex;width:24px;height:24px;border-radius:50%;background:var(--hi);color:var(--blue);align-items:center;justify-content:center;font:600 12px var(--sans)}
+.hint{font-size:13.5px;color:var(--ink2);margin:4px 0 10px;max-width:920px}
+button{font:500 13px var(--sans);color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+button.on{background:var(--blue);border-color:var(--blue);color:#fff}
 button:disabled{opacity:.55;cursor:default}
-.cmd{display:none;font:12px var(--mono);background:var(--panel);border:1px dashed var(--rule);padding:8px 10px;margin:0;white-space:pre-wrap}
-.foot{margin-top:28px;padding-top:10px;border-top:1.5px solid var(--rule);font:11.5px var(--mono);color:var(--ink2)}
-a{color:var(--red)}
+.cmd{display:none;font:12.5px var(--mono);background:#f6f8fa;border:1px solid var(--rule);border-radius:6px;padding:8px 10px;margin:0;white-space:pre-wrap}
+.foot{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink2)}
+a{color:var(--blue)}
 
-.fig{border:1px solid var(--rule);background:#f2eee3;position:relative;padding:34px 10px 10px;margin-top:18px}
+.fig{border:1px solid var(--rule);border-radius:8px;background:#fff;position:relative;padding:34px 10px 10px;margin-top:20px}
 .fig img{width:100%;height:auto;display:block}
-.fig .tag{position:absolute;top:0;left:0;font:600 11px var(--mono);letter-spacing:.06em;padding:5px 9px;border-right:1px solid #1a2532;border-bottom:1px solid #1a2532;color:#1a2532;background:#f2eee3}
-.sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
-.sheets a{display:block;padding:14px 16px 16px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none;background:var(--panel)}
-.sheets a:hover{background:var(--hi)}
-.sheets .no{font:600 11px var(--mono);color:var(--red);letter-spacing:.1em}
-.sheets b{display:block;font:600 20px/1.15 var(--cond);text-transform:uppercase;letter-spacing:.03em;margin:4px 0 6px}
+.fig .tag{position:absolute;top:8px;left:12px;font:600 13px var(--sans);color:var(--ink2)}
+.sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.sheets a{display:block;padding:14px 16px 16px;border:1px solid var(--rule);border-radius:8px;color:var(--ink);text-decoration:none;background:#fff}
+.sheets a:hover{border-color:var(--blue)}
+.sheets .no{font:500 12.5px var(--sans);color:var(--blue)}
+.sheets b{display:block;font:600 18px/1.25 var(--sans);margin:2px 0 4px}
 .sheets span{font-size:13.5px;color:var(--ink2)}
-dl.spec{display:grid;grid-template-columns:150px 1fr;margin:0;border-top:1px solid var(--rule)}
-dl.spec dt,dl.spec dd{margin:0;padding:7px 10px;border-bottom:1px solid var(--rule)}
-dl.spec dt{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2)}
+dl.spec{display:grid;grid-template-columns:150px 1fr;margin:0}
+dl.spec dt,dl.spec dd{margin:0;padding:8px 10px;border-bottom:1px solid var(--soft)}
+dl.spec dt{font:600 14px var(--sans);color:var(--ink)}
 @media (max-width:560px){dl.spec{grid-template-columns:1fr}dl.spec dt{border-bottom:0;padding-bottom:0}}
 </style></head><body><div class="sheet">
 <header class="head">
   <div>
-    <div class="kicker">sheet 01 / index</div>
-    <h1>Human-carried<br>indirect sensing</h1>
+    <div class="kicker">Simulation code and results</div>
+    <h1>Human-carried indirect sensing</h1>
     <p class="lead">A person carries a smartwatch and a smartphone across a flexible deck. The model solves the person and the deck together and records what the devices measure.</p>
   </div>
   <table class="tblock">
-    <tr><th>paper</th><td>Babazade and Lüleci, under review</td></tr>
-    <tr><th>deck</th><td>OpenSeesPy, simply supported</td></tr>
-    <tr><th>person</th><td>15 DOF, walking or standing</td></tr>
-    <tr><th>devices</th><td>triaxial, wrist and hip</td></tr>
-    <tr><th>by</th><td>J. Babazade, LSU</td></tr>
+    <tr><th>Paper</th><td>Babazade and Lüleci, under review</td></tr>
+    <tr><th>Deck</th><td>OpenSeesPy, simply supported</td></tr>
+    <tr><th>Person</th><td>15 DOF, walking or standing</td></tr>
+    <tr><th>Devices</th><td>triaxial, wrist and hip</td></tr>
+    <tr><th>By</th><td>J. Babazade, LSU</td></tr>
   </table>
 </header>
 
-<div class="fig"><span class="tag">FIG. 1 / ONE CROSSING</span><img src="assets/crossing.gif" alt="A person walks across the deck. Below, the vertical acceleration of the left wrist and left hip devices."></div>
+<div class="fig"><span class="tag">One crossing of the deck</span><img src="assets/crossing.gif" alt="A person walks across the deck. Below, the vertical acceleration of the left wrist and left hip devices."></div>
 
 <section>
   <h2><span class="num">1</span>Parameter explorer</h2>
   <p class="hint">Ten parameters, every pair already simulated. Sweep one and compare the deck with the two devices. Click a deck peak to see its mode shape and whether each device found it. Gait lines and the observability index of every mode are shown with it.</p>
   <div class="sheets">
-    <a href="explorer-walking.html"><span class="no">SHEET 02</span><b>Walking person</b><span>20 crossings per configuration. 1207 stored.</span></a>
-    <a href="explorer-standing.html"><span class="no">SHEET 03</span><b>Standing person</b><span>20 records of 60 s at mid-span. 1015 stored.</span></a>
+    <a href="explorer-walking.html"><span class="no">Explorer</span><b>Walking person</b><span>20 crossings per configuration. 1207 stored.</span></a>
+    <a href="explorer-standing.html"><span class="no">Explorer</span><b>Standing person</b><span>20 records of 60 s at mid-span. 1015 stored.</span></a>
   </div>
 </section>
 
@@ -88,10 +81,10 @@ dl.spec dt{font:500 12px var(--mono);text-transform:uppercase;letter-spacing:.08
   <h2><span class="num">2</span>Animations</h2>
   <p class="hint">The baseline deck. Deck motion is exaggerated, the person is to scale.</p>
   <div class="sheets">
-    <a href="walk-2d.html"><span class="no">SHEET 04</span><b>Walking, side view</b><span>One crossing at 1.5 m/s.</span></a>
-    <a href="walk-3d.html"><span class="no">SHEET 05</span><b>Walking, 3D</b><span>The same crossing in 3D.</span></a>
-    <a href="stand-2d.html"><span class="no">SHEET 06</span><b>Standing, side view</b><span>Standing at mid-span.</span></a>
-    <a href="stand-3d.html"><span class="no">SHEET 07</span><b>Standing, 3D</b><span>The same record in 3D.</span></a>
+    <a href="walk-2d.html"><span class="no">Animation</span><b>Walking, side view</b><span>One crossing at 1.5 m/s.</span></a>
+    <a href="walk-3d.html"><span class="no">Animation</span><b>Walking, 3D</b><span>The same crossing in 3D.</span></a>
+    <a href="stand-2d.html"><span class="no">Animation</span><b>Standing, side view</b><span>Standing at mid-span.</span></a>
+    <a href="stand-3d.html"><span class="no">Animation</span><b>Standing, 3D</b><span>The same record in 3D.</span></a>
   </div>
 </section>
 

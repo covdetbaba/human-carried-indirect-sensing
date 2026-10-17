@@ -1,5 +1,7 @@
 # Human-carried indirect sensing
 
+**Jovdat Babazade and Furkan Lüleci** · Louisiana State University
+
 A person carries a smartwatch and a smartphone across a flexible deck. This code simulates the person and the deck together and records what the devices measure.
 
 ![A person walks across the deck. Below, the vertical acceleration of the left wrist and left hip devices.](media/crossing.gif)
@@ -8,7 +10,7 @@ A person carries a smartwatch and a smartphone across a flexible deck. This code
 |---|---|
 | Paper | Indirect Sensing of Civil Structures through Human-Carried Mobile Devices: Effects of Structural Properties, Excitation, and Sensor Noise. Babazade and Lüleci, under review. |
 | Pages | [covdetbaba.github.io/human-carried-indirect-sensing](https://covdetbaba.github.io/human-carried-indirect-sensing/) |
-| Author | Jovdat Babazade, Louisiana State University |
+| Authors | Jovdat Babazade and Furkan Lüleci (supervisor), Department of Civil and Environmental Engineering, Louisiana State University |
 | License | All rights reserved. Free to run and study with credit. See [LICENSE](LICENSE). |
 
 ## 1. What is modelled

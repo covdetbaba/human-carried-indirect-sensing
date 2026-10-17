@@ -1,9 +1,12 @@
 cff-version: 1.2.0
-message: "All rights reserved by the author. If you use this framework or its results, credit the author and cite it as below."
+message: "All rights reserved by Jovdat Babazade. If you use this framework or its results, credit the authors and cite it as below."
 title: "Human-Carried Indirect Sensing of Civil Structures: simulation framework"
 authors:
   - family-names: Babazade
     given-names: Jovdat
+    affiliation: "Louisiana State University"
+  - family-names: Lüleci
+    given-names: Furkan
     affiliation: "Louisiana State University"
 license-url: "https://github.com/covdetbaba/human-carried-indirect-sensing/blob/main/LICENSE"
 repository-code: "https://github.com/covdetbaba/human-carried-indirect-sensing"

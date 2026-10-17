@@ -415,7 +415,7 @@ BODY = """
     <tr><th>Records</th><td>__RECORDS__</td></tr>
     <tr><th>Stored</th><td>__N__ configurations</td></tr>
     <tr><th>Band</th><td>__FMIN__ to __FMAX__ Hz</td></tr>
-    <tr><th>By</th><td>J. Babazade</td></tr>
+    <tr><th>Authors</th><td>J. Babazade and F. Lüleci</td></tr>
   </table>
 </header>
 <nav class="nav"><a href="index.html">Index</a><a href="explorer-walking.html"__WCUR__>Walking</a><a href="explorer-standing.html"__SCUR__>Standing</a></nav>

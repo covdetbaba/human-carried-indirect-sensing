@@ -1,0 +1,66 @@
+Copyright (c) 2026 Jovdat Babazade. All rights reserved.
+
+ATTRIBUTION-REQUIRED, OWNERSHIP-RETAINED LICENSE
+
+1. Ownership
+
+This repository and everything in it, including the source code, numerical
+models, model formulations, simulated datasets, observability index and its
+thresholds, figures, web pages, animations, and documentation (together, the
+"Materials"), are the original work and intellectual property of Jovdat
+Babazade (the "Owner"). The Materials are protected by copyright law and
+international treaties. Ownership of the Materials, and every right not
+expressly granted below, remains with the Owner. Using the Materials does not
+transfer any ownership or authorship to the user.
+
+2. What you may do
+
+Subject to the conditions in Sections 3 and 4, any person may, free of charge:
+
+  a. download, view, and study the Materials;
+  b. run the code and reproduce the results;
+  c. modify the code for their own research, teaching, or learning;
+  d. use results obtained with the Materials in publications, theses, and
+     reports, provided the Owner and the associated publication are cited.
+
+3. Conditions
+
+  a. Attribution. Every use under Section 2(d), and every copy of the
+     Materials, must credit the Owner as the author and developer and cite
+     the associated publication.
+  b. Notices. This copyright notice and this license must be kept in every
+     copy of the Materials or any substantial part of them.
+  c. Modified versions must be clearly marked as modified, must keep the
+     Owner's credit, and may not be presented as an independent work.
+
+4. What you may not do
+
+  a. Claim, state, or imply that you, or anyone other than the Owner, wrote,
+     developed, or own the Materials or any part of them, including any model,
+     method, or dataset in them.
+  b. Remove, alter, or hide the Owner's name, this notice, or this license.
+  c. Republish, redistribute, sublicense, or sell the Materials or modified
+     versions of them, in whole or in part, outside this repository, without
+     the Owner's prior written permission.
+  d. Use the Materials in a commercial product or service without the
+     Owner's prior written permission.
+
+5. Permission requests
+
+Requests for any use not granted above must be made to the Owner through
+https://github.com/covdetbaba. Permission is valid only when given in writing
+by the Owner and only within the scope stated in it.
+
+6. Enforcement
+
+Any use that breaks the conditions of this license, including any claim of
+authorship or ownership of the Materials, ends all rights granted by it and
+infringes the Owner's rights. The Owner reserves all rights and remedies
+available under applicable copyright and intellectual property law, including
+claims for damages and injunctive relief.
+
+7. No warranty
+
+The Materials are provided "as is", without warranty of any kind, express or
+implied. In no event shall the Owner be liable for any claim, damages, or
+other liability arising from the Materials or their use.

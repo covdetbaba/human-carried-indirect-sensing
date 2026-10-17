@@ -4,7 +4,7 @@ from sheet_style import FONTS, SHEET_CSS
 
 PAGE_CSS = """
 :root{--fam-gait:#d08a10;--fam-arm:#d1495b;--fam-body:#2563a8;--fam-drive:#7a8491;
---cls-u:#c23b3b;--cls-m:#b7791f;--cls-o:#2f855a}
+--cls-u:#c0392b;--cls-m:#b7791f;--cls-o:#2f855a}
 .controls{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:0;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
 .prow{display:grid;grid-template-columns:22px 1fr 160px;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--soft);background:#fff}
 .prow.sweep{background:var(--hi)}
@@ -34,7 +34,7 @@ table.t th,table.t td{border-bottom:1px solid var(--soft);padding:5px 9px;text-a
 table.t th:first-child,table.t td:first-child{text-align:left}
 table.t th{font-weight:600;color:var(--ink2);border-bottom:1px solid var(--rule)}
 table.t td.wrap{white-space:normal;text-align:left}
-.scroll{overflow-x:auto}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--rule);border-radius:8px}
 .two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:1000px){.two{grid-template-columns:1fr}}
 .shape{height:360px}
@@ -46,7 +46,7 @@ table.t td.wrap{white-space:normal;text-align:left}
 .cls{font-weight:600}
 .cls.u{color:var(--cls-u)}.cls.m{color:var(--cls-m)}.cls.o{color:var(--cls-o)}
 .ok{color:var(--cls-o);font-weight:600}.miss{color:var(--cls-u);font-weight:600}
-.eq{font:14px var(--sans);border-left:3px solid var(--blue);border-radius:0;padding:8px 12px;background:#f6f8fa;margin:6px 0 10px;max-width:900px}
+.eq{font:14px var(--sans);border-left:3px solid var(--accent);border-radius:0;padding:8px 12px;background:var(--panel);margin:6px 0 10px;max-width:900px}
 """
 
 PAGE_JS = r"""

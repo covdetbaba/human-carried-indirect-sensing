@@ -41,25 +41,25 @@ def trim(res, t0, t1):
     a["t"] = [t - t0 for t in a["t"]]
 
 
-TAP_HZ = 1.25
-TAP_M = 0.06
-
-
-def tap(t, i):
-    return 0.5 - 0.5 * np.cos(2 * np.pi * (TAP_HZ * t + i / 3.0))
+HEAD_H = 0.14
+HEAD_W = 0.085
+SHAFT = 0.42
 
 
 def shaker_arrows(res, k, z):
     cfg, anim = res["cfg"], res["anim"]
     xs = np.asarray(res["xs"])
     pts = hv.bench_force_points(cfg) if cfg.get("bench_force_live", True) else []
-    t = float(anim["t"][k])
+    fk = anim["bench_f"][k] if k < len(anim.get("bench_f", [])) else []
     out = []
     for i, pt in enumerate(pts):
         zt = float(np.interp(pt["x"], xs, z))
-        d = TAP_M * tap(t, i)
-        out.append(dict(x=pt["x"], tip=zt + TAP_M + 0.01 - d,
-                        tail=zt + TAP_M + 0.46 - d))
+        F = abs(float(fk[i])) if i < len(fk) else pt["amp"]
+        puls = 1.0 + 0.15 * np.tanh((F - pt["amp"]) / max(pt["amp"], 1.0))
+        neck = zt + HEAD_H
+        out.append(dict(x=pt["x"], tip=zt, neck=neck, top=neck + SHAFT * puls,
+                        head=[(pt["x"] - HEAD_W, neck), (pt["x"] + HEAD_W, neck),
+                              (pt["x"], zt)]))
     return out
 
 
@@ -124,19 +124,18 @@ def figure_2d(res):
                          line=dict(color=C["edge"], width=1.2),
                          hoverinfo="skip")]
         ar = shaker_arrows(res, k, z)
-        sx, sy = [], []
+        sx, sy, hx, hy = [], [], [], []
         for a in ar:
-            sx += [a["x"], a["x"], None]; sy += [a["tail"], a["tip"] + 0.09, None]
+            sx += [a["x"], a["x"], None]; sy += [a["top"], a["neck"], None]
+            hx += [q[0] for q in a["head"]] + [a["head"][0][0], None]
+            hy += [q[1] for q in a["head"]] + [a["head"][0][1], None]
         tr.append(go.Scatter(x=sx, y=sy, mode="lines",
-                             line=dict(color=C["shaker"], width=3),
+                             line=dict(color=C["shaker"], width=5),
                              hoverinfo="skip"))
-        tr.append(go.Scatter(x=[a["x"] for a in ar], y=[a["tip"] for a in ar],
-                             mode="markers", marker=dict(
-                                 symbol="triangle-down", size=11,
-                                 color=C["shaker"]),
-                             hovertext=[f"shaker {i + 1}"
-                                        for i in range(len(ar))],
-                             hoverinfo="text"))
+        tr.append(go.Scatter(x=hx, y=hy, mode="lines", fill="toself",
+                             fillcolor=C["shaker"],
+                             line=dict(color=C["shaker"], width=1),
+                             hoverinfo="skip"))
         for key, col, w in (("legR", C["leg2"], 5), ("armR", C["arm2"], 4),
                             ("legL", C["leg"], 6), ("trunk", C["trunk"], 9),
                             ("armL", C["arm"], 5)):
@@ -177,8 +176,8 @@ def figure_2d(res):
 
 
 ANIM_CSS = """
-.player{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border:1px solid var(--rule);border-bottom:0;border-radius:8px 8px 0 0;padding:8px 12px;background:#f6f8fa;font:13px var(--sans)}
-.player input[type=range]{accent-color:var(--blue)}
+.player{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border:1px solid var(--rule);border-bottom:0;border-radius:8px 8px 0 0;padding:8px 12px;background:var(--panel);font:13px var(--sans)}
+.player input[type=range]{accent-color:var(--accent)}
 .player .t{min-width:76px;color:var(--blue);font-weight:600;font-variant-numeric:tabular-nums}
 .figbox{border:1px solid var(--rule);border-radius:0 0 8px 8px;background:#fff;padding:4px}
 """
@@ -255,21 +254,20 @@ def write_gif(res, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.animation import FuncAnimation, PillowWriter
-    from matplotlib.patches import FancyArrowPatch, Rectangle
+    from matplotlib.patches import Rectangle
     cfg = res["cfg"]; L = cfg["deck_L"]; xs = np.asarray(res["xs"])
     t_sl = hv.section_depth(cfg); ps = poses(res); t = res["t"]
     watch = res["acc3"][:, 3, 2]; phone = res["acc3"][:, 0, 2]
-    paper, ink, red = "#ffffff", "#1b1f24", "#2563a8"
+    paper, ink, red = "#ffffff", "#1f2a36", "#0e7c86"
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 9,
                          "text.color": ink, "axes.labelcolor": ink,
                          "xtick.color": ink, "ytick.color": ink,
                          "axes.edgecolor": ink, "axes.linewidth": 0.8})
-    fig = plt.figure(figsize=(8.4, 4.5), dpi=100, facecolor=paper)
+    fig = plt.figure(figsize=(8.4, 4.5), dpi=160, facecolor=paper)
     fig.add_artist(Rectangle((0.008, 0.012), 0.984, 0.976, transform=fig.transFigure,
-                             fill=False, lw=1.0, ec="#d6d9de"))
+                             fill=False, lw=1.0, ec="#ddd6c8"))
     fig.add_artist(Rectangle((0.008, 0.885), 0.984, 0.103, transform=fig.transFigure,
-                             fill=False, lw=0.8, ec="#d6d9de"))
+                             fill=False, lw=0.8, ec="#ddd6c8"))
     fig.text(0.025, 0.925, "Person on a flexible deck", fontsize=12.5,
              fontweight="bold")
     fig.text(0.025, 0.897, "walking %g m/s  |  %g m span  |  three ambient shakers"
@@ -284,12 +282,13 @@ def write_gif(res, path):
     deck, = ax.fill([], [], facecolor=C["deck"], edgecolor=C["edge"],
                     hatch="////", lw=1)
     ax.plot([0, L], [-t_sl - 0.07] * 2, "^", color=C["edge"], ms=11)
-    arrows = []
+    from matplotlib.patches import Polygon
+    shafts, heads = [], []
     for a in shaker_arrows(res, 0, ps[0]["z"]):
-        ar = FancyArrowPatch((a["x"], a["tail"]), (a["x"], a["tip"]),
-                             arrowstyle="-|>,head_length=5,head_width=3.5",
-                             color=C["shaker"], lw=2.2)
-        ax.add_patch(ar); arrows.append(ar)
+        shafts.append(ax.plot([], [], color=C["shaker"], lw=3.2,
+                              solid_capstyle="butt")[0])
+        hp = Polygon(a["head"], closed=True, fc=C["shaker"], ec=C["shaker"], lw=0.6)
+        ax.add_patch(hp); heads.append(hp)
     lines = {k: ax.plot([], [], color=c, lw=w, solid_capstyle="round")[0]
              for k, c, w in (("legR", C["leg2"], 4), ("armR", C["arm2"], 3),
                              ("legL", C["leg"], 5), ("trunk", C["trunk"], 7),
@@ -315,8 +314,9 @@ def write_gif(res, path):
     def draw(k):
         p = ps[k]; z = p["z"]
         deck.set_xy(np.c_[np.r_[xs, xs[::-1]], np.r_[z, (z - t_sl)[::-1]]])
-        for ar, a in zip(arrows, shaker_arrows(res, k, z)):
-            ar.set_positions((a["x"], a["tail"]), (a["x"], a["tip"]))
+        for sh, hp, a in zip(shafts, heads, shaker_arrows(res, k, z)):
+            sh.set_data([a["x"], a["x"]], [a["top"], a["neck"]])
+            hp.set_xy(a["head"])
         for key, ln in lines.items():
             q = np.array(p[key]); ln.set_data(q[:, 0], q[:, 1])
         head.set_data([p["head"][0]], [p["head"][1]])
@@ -327,9 +327,21 @@ def write_gif(res, path):
         cur.set_xdata([p["t"], p["t"]])
         clock.set_text("t = %.2f s" % p["t"])
         return []
+    from PIL import Image
     dt = float(np.median(np.diff([q["t"] for q in ps])))
-    FuncAnimation(fig, draw, frames=range(len(ps))).save(
-        path, writer=PillowWriter(fps=round(1.0 / dt)))
+    rgb = []
+    for k in range(len(ps)):
+        draw(k)
+        fig.canvas.draw()
+        rgb.append(Image.fromarray(np.asarray(fig.canvas.buffer_rgba())[:, :, :3].copy()))
+    plt.close(fig)
+    probe = Image.new("RGB", (rgb[0].width, rgb[0].height * 3))
+    for n, k in enumerate((0, len(rgb) // 2, len(rgb) - 1)):
+        probe.paste(rgb[k], (0, n * rgb[0].height))
+    pal = probe.quantize(colors=96, method=Image.Quantize.MEDIANCUT)
+    frames = [im.quantize(palette=pal, dither=Image.Dither.NONE) for im in rgb]
+    frames[0].save(path, save_all=True, append_images=frames[1:],
+                   duration=int(round(1000 * dt)), loop=0, disposal=1)
     print("  wrote", os.path.relpath(path, ROOT))
 
 
@@ -348,8 +360,8 @@ def main():
         write_anim_page(f"{stem}-2d.html", fig, ms, tt, title2, lead,
                         ("A 10 s window of the 60 s record. " if stand else "")
                         + "Deck motion is drawn %g times larger. The person is "
-                        "to scale. Squares are the devices. The tapping arrows are "
-                        "the three shakers, always loading the deck." %
+                        "to scale. Squares are the devices. Arrows are the three "
+                        "shakers, resting on the deck and loading it all the time." %
                         res["cfg"]["anim_disp_scale"], False, "06" if stand else "04")
         fig, ms, tt = hv.figure_3d(res)
         write_anim_page(f"{stem}-3d.html", fig, ms, tt, title3, lead,

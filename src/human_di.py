@@ -3545,14 +3545,16 @@ def figure_3d(res):
         sx = []; sy = []; sz = []
         cx3 = []; cy3 = []; cz3 = []; cw = []
         lx = []; ly = []; lz = []; lt = []
+        bfk3 = anim["bench_f"][k] if k < len(anim.get("bench_f", [])) else []
         for pi, pt in enumerate(bench_pts):
             zt = zdeck(k, pt["x"], pt["y"])
-            press = 0.06 * (0.5 - 0.5 * np.cos(2 * np.pi * (1.25 * float(tk3) + pi / 3.0)))
-            base = zt + 0.08 - press; top = base + 0.6
+            Fn = abs(float(bfk3[pi])) if pi < len(bfk3) else pt["amp"]
+            puls = 1.0 + 0.15 * np.tanh((Fn - pt["amp"]) / max(pt["amp"], 1.0))
+            neck = zt + 0.26; top = neck + 0.55 * puls
             sx += [pt["x"], pt["x"], None]
             sy += [pt["y"], pt["y"], None]
-            sz += [top, base + 0.16, None]
-            cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(base + 0.02)
+            sz += [top, neck, None]
+            cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(zt + 0.005)
             cw.append(-1.0)
             lx.append(pt["x"]); ly.append(pt["y"]); lz.append(top + 0.12)
             lab = f"shaker {pi + 1}"

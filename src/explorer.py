@@ -128,7 +128,7 @@ def store_sig():
     h.update(repr((MODE, PARAMS, [LEVELS[p] for p in PARAMS],
                    [BASE[p] for p in PARAMS], NF, PASSES, c["psd_fmin"],
                    c["psd_fmax"], c["psd_smooth_hz"], c["deck_n_modes"],
-                   hv.PHYSICS_REV)).encode())
+                   hv.PHYSICS_REV, hv.OBS_T1, hv.OBS_T2, hv.OBS_SIGMA)).encode())
     return h.hexdigest()[:16]
 
 
@@ -170,6 +170,19 @@ def _enc(y):
     return base64.b64encode(q.astype("<u2").tobytes()).decode("ascii"), pk
 
 
+def record_window(cfg, stand):
+    import human_di as hv
+    if stand:
+        Trec = float(cfg["stand_T"])
+    else:
+        Trec = float(cfg["deck_L"]) / float(cfg["walk_speed"]) - hv.walk_trim_s(cfg)
+    seg = cfg.get("psd_seg_s") or Trec
+    return Trec, min(Trec, float(seg))
+
+
+PMODE_KEYS = ("oi", "f", "band", "fh", "ph", "G", "F", "Po", "Pb")
+
+
 def run_one(task):
     key, sel, levels = task[:3]
     mode = task[3] if len(task) > 3 else MODE
@@ -184,12 +197,24 @@ def run_one(task):
         ens = hv.run_ensemble(cfg, list(cfg["sensors"]))
     except Exception as ex:
         return dict(key=key, sel=sel, failed=f"{type(ex).__name__}: {ex}")
+    stand = hv.is_standing(cfg)
     fmin, fmax = cfg["psd_fmin"], cfg["psd_fmax"]
     g = np.linspace(fmin, fmax, NF)
     deck = hv.smooth_psd(bench["sv1"], bench["df"], cfg["psd_smooth_hz"])
     cb, pkb = _enc(np.interp(g, bench["f"], deck, left=np.nan, right=np.nan))
-    out = dict(key=key, sel=sel, failed="", cb=cb, pkb=pkb,
-               modes=[[l, round(f, 4)] for l, f in hv.deck_modes(bench, cfg)])
+    br = hv.benchmark_references(bench, cfg)
+    _Trec, Tres = record_window(cfg, stand)
+    out = dict(key=key, sel=sel, failed="", cb=cb, pkb=pkb, fmin=fmin,
+               fmax=fmax,
+               refs=[[str(l), float(f)] for l, f in br["refs"]],
+               bands=[[float(a), float(b)] for a, b in br["bands"]],
+               Tres=float(Tres), L=float(cfg["deck_L"]),
+               W=float(hv.deck_width(cfg)),
+               fp=(None if stand else round(float(ens["cfg"]["pacing_freq"]), 3)),
+               hum=[[round(float(f), 4), fam]
+                    for f, fam, _lab in hv.peak_sources(cfg, ens)
+                    if fam in ("gait", "arm", "body", "drive")
+                    and fmin <= f <= fmax])
     rigid = background_of(cfg)
     for part, dev in (("wrist", "watch"), ("hip", "phone")):
         f, P = hv.ens_part_sv1(ens, part, comb_twin=rigid)
@@ -199,8 +224,22 @@ def run_one(task):
         c, pk = _enc(np.interp(g, f, Pd, left=np.nan, right=np.nan))
         rc, rpk = _enc(np.interp(g, fr, Prd, left=np.nan, right=np.nan))
         out[dev] = dict(c=c, pk=pk, rc=rc, rpk=rpk)
+    hv.curve_index_run(out, NF)
+    slim_scores(out)
     out["secs"] = round(time.time() - t0, 1)
     return out
+
+
+def slim_scores(r):
+    for k in ("n_peak", "pobs"):
+        r.pop(k, None)
+    for dev in ("watch", "phone"):
+        d = r[dev]
+        r[dev] = dict(c=d["c"], pk=d["pk"], rc=d["rc"], rpk=d["rpk"],
+                      oi=d["oi"], band=d["band"], caps=d.get("caps", []),
+                      pmode={m: {k: v[k] for k in PMODE_KEYS if k in v}
+                             for m, v in d["pmode"].items()})
+    return r
 
 
 def task_of(sel):
@@ -258,7 +297,7 @@ def page_meta(store):
                 labels={p: LABELS[p] for p in PARAMS},
                 base={p: BASE[p] for p in PARAMS}, passes=store["passes"],
                 fmin=store["fmin"], fmax=store["fmax"], nf=store["NF"],
-                smooth=0.06, port=PORT,
+                smooth=hv.OBS_SIGMA, t1=hv.OBS_T1, t2=hv.OBS_T2, port=PORT,
                 cmd="python3 explorer.py"
                     + (" --standing" if MODE == "standing" else "")
                     + " --serve",
@@ -369,7 +408,7 @@ def main():
                 print(f"    {n}/{len(tasks)}  {time.time() - t0:.0f} s",
                       flush=True)
     runs.sort(key=lambda r: r["key"])
-    store = dict(version=1, mode=MODE, sig=store_sig(), passes=PASSES, NF=NF,
+    store = dict(version=2, mode=MODE, sig=store_sig(), passes=PASSES, NF=NF,
                  fmin=hv.CONFIG["psd_fmin"], fmax=hv.CONFIG["psd_fmax"],
                  built=time.strftime("%Y-%m-%d"), runs=runs)
     save_store(store)

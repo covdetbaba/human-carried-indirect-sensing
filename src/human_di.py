@@ -161,6 +161,7 @@ CONFIG = dict(
     psd_seg_s       = 30.0,
     psd_normalize   = False,
     psd_offset_dec  = 0.0,
+    psd_capture_hz  = 0.35,
     psd_reject_hz   = 0.12,
     contact_rise_s  = 0.10,
     gait_contact    = "ramp",
@@ -2249,7 +2250,7 @@ def _remove_gait_harmonics(sig, fs, fp, cfg, kmax=None, tau=None,
     return out, lines
 
 
-SPEC_NFFT = 2 ** 17
+OBS_NFFT = 2 ** 17
 
 
 AXIS_NAMES = ("X", "Y", "Z")
@@ -2414,7 +2415,7 @@ def matched_comb_lines(flex, twin, part, noise_override=None):
     return {k: comb_union(a[k], b[k]) for k in a}
 
 
-def ens_device_spectra(ens, part, noise_override=None, nfft=SPEC_NFFT,
+def ens_device_spectra(ens, part, noise_override=None, nfft=OBS_NFFT,
                        comb_from=None, comb_twin=None):
     cfg = ens["cfg"]
     if cfg.get("cp_correct", False):
@@ -2485,7 +2486,321 @@ def ens_part_sv1(ens, part, noise_override=None, comb_from=None,
     return ens["grid"], np.interp(ens["grid"], d["f"], d["ens_sv1"])
 
 
+OBS_BAND_MAX_HZ = None
+
+
+OBS_T1 = 27.5
+
+
+OBS_T2 = 92.3
+
+
+def obs_class(oi, t1=None, t2=None):
+    t1 = OBS_T1 if t1 is None else t1
+    t2 = OBS_T2 if t2 is None else t2
+    if t1 is None or t2 is None:
+        return "unclassified"
+    oi = float(oi)
+    if oi < t1:
+        return "unobservable"
+    if oi < t2:
+        return "marginally observable"
+    return "observable"
+
+
+def half_power_band(f, sv1, f_pk, others=(), fmin=None, fmax=None,
+                    max_half=None):
+    f = np.asarray(f, float); sv = np.asarray(sv1, float)
+    if f.size < 3:
+        return (float("nan"), float("nan"))
+    lo_lim = f[0] if fmin is None else max(f[0], float(fmin))
+    hi_lim = f[-1] if fmax is None else min(f[-1], float(fmax))
+    k = int(np.argmin(np.abs(f - float(f_pk))))
+    while 0 < k < f.size - 1 and sv[k + 1] > sv[k]:
+        k += 1
+    while 0 < k < f.size - 1 and sv[k - 1] > sv[k]:
+        k -= 1
+    half = sv[k] / 2.0
+
+    def cross(step):
+        m = k
+        while 0 < m < f.size - 1:
+            n = m + step
+            if n < 0 or n >= f.size:
+                break
+            if sv[n] <= half:
+                a, b = sv[m], sv[n]
+                if a == b:
+                    return float(f[n])
+                w = (a - half) / (a - b)
+                return float(f[m] + w * (f[n] - f[m]))
+            m = n
+        return float(f[max(0, min(f.size - 1, m))])
+
+    fL, fU = cross(-1), cross(+1)
+    for fo in others:
+        fo = float(fo)
+        if not np.isfinite(fo) or fo == float(f_pk):
+            continue
+        a, b = sorted((float(f[k]), fo))
+        m = (f >= a) & (f <= b)
+        if int(m.sum()) < 3:
+            continue
+        fv = float(f[m][int(np.argmin(sv[m]))])
+        if fo < f[k]:
+            fL = max(fL, fv)
+        else:
+            fU = min(fU, fv)
+    if max_half:
+        fL = max(fL, float(f[k]) - float(max_half))
+        fU = min(fU, float(f[k]) + float(max_half))
+    fL = max(fL, lo_lim); fU = min(fU, hi_lim)
+    if not (fU > fL):
+        return (float("nan"), float("nan"))
+    return (fL, fU)
+
+
+OBS_SIGMA = 0.06
+
+
+OBS_WALK_WIDTHS = 2.0
+
+
 PHYSICS_REV = "rev2c"
+
+
+def display_decode(b64, pk, n):
+    import base64 as _b64
+    if not b64:
+        return np.full(n, np.nan)
+    q = np.frombuffer(_b64.b64decode(b64), dtype="<u2").astype(float)
+    out = float(pk) * 10.0 ** (-(q / 10.0) / 10.0)
+    out[q == 65535] = np.nan
+    return out
+
+
+def display_smooth(y, sig_hz, df):
+    y = np.asarray(y, float)
+    if not (sig_hz > 0) or not (df > 0):
+        return y.copy()
+    s = sig_hz / df
+    r = max(1, int(np.ceil(3 * s)))
+    k = np.arange(-r, r + 1)
+    w = np.exp(-0.5 * (k / s) ** 2)
+    n = len(y)
+    ok = np.isfinite(y) & (y > 0)
+    lg = np.where(ok, np.log10(np.where(ok, y, 1.0)), 0.0)
+    out = np.full(n, np.nan)
+    for i in range(n):
+        if not ok[i]:
+            continue
+        j = np.clip(i + k, 0, n - 1)
+        m = ok[j]
+        wt = w[m].sum()
+        if wt > 0:
+            out[i] = 10.0 ** ((w[m] * lg[j[m]]).sum() / wt)
+    return out
+
+
+def _curve_area(g, S, a, b):
+    ok = np.isfinite(S)
+    if ok.sum() < 2 or b <= a:
+        return 0.0
+    gg, ss = g[ok], S[ok]
+    inside = (gg > a) & (gg < b)
+    x = np.concatenate(([a], gg[inside], [b]))
+    y = np.concatenate(([np.interp(a, gg, ss)], ss[inside],
+                        [np.interp(b, gg, ss)]))
+    return float(np.sum(0.5 * (y[1:] + y[:-1]) * np.diff(x)))
+
+
+OBS_TIE = 1e-9
+
+
+def obs_curve_mode(g, S, B, f_ic, fL, fU, h):
+    g = np.asarray(g, float); S = np.asarray(S, float)
+    B = np.asarray(B, float)
+    ef, eb = _curve_area(g, S, fL, fU), _curve_area(g, B, fL, fU)
+    WL = max(float(g[0]), min(fL, f_ic - 2.0 * h))
+    WU = min(float(g[-1]), max(fU, f_ic + 2.0 * h))
+    rec = dict(G=int(ef > eb), E_flex=ef, E_bg=eb, W=(WL, WU), h=h,
+               W_walk=None, n_max=None,
+               f_hat=None, S_peak=None, S_L=None, S_R=None, S_bg=None,
+               F=None, P_own=None, P_bg=None, o=0.0)
+    if not rec["G"]:
+        return rec
+    gt = lambda x, y: x > y * (1.0 + OBS_TIE)
+    ge = lambda x, y: x >= y * (1.0 - OBS_TIE)
+    n = len(g)
+    lmax = []
+    for k in range(1, n - 1):
+        if not (WL <= g[k] <= WU):
+            continue
+        a, b_, c = S[k - 1], S[k], S[k + 1]
+        if not (np.isfinite(a) and np.isfinite(b_) and np.isfinite(c)):
+            continue
+        if gt(b_, a) and ge(b_, c):
+            lmax.append(k)
+    rec["n_max"] = len(lmax)
+    if not lmax:
+        rec.update(F=0.0, P_own=0.0, P_bg=0.0)
+        return rec
+    w = WU - WL
+    AL, AU = WL - OBS_WALK_WIDTHS * w, WU + OBS_WALK_WIDTHS * w
+    lo = hi = None
+    for j in range(n):
+        if AL <= g[j] <= AU:
+            if lo is None:
+                lo = j
+            hi = j
+    rec["W_walk"] = (float(g[lo]), float(g[hi]))
+
+    def own(k):
+        pk_ = S[k]
+        sl = S[k - 1]
+        j = k - 2
+        while j >= lo and np.isfinite(S[j]) and not gt(S[j], pk_):
+            if S[j] < sl:
+                sl = S[j]
+            j -= 1
+        sr = S[k + 1]
+        j = k + 2
+        while j <= hi and np.isfinite(S[j]) and not gt(S[j], pk_):
+            if S[j] < sr:
+                sr = S[j]
+            j += 1
+        return sl, sr, max(0.0, 1.0 - max(sl, sr) / pk_)
+
+    best = SL = SR = Po = None
+    for k in lmax:
+        sl, sr, p = own(k)
+        if (best is None or gt(p, Po)
+                or (not gt(Po, p) and gt(S[k], S[best]))):
+            best, SL, SR, Po = k, sl, sr, p
+    fh, sp = float(g[best]), float(S[best])
+    d = abs(fh - f_ic)
+    edge = (f_ic - WL) if fh < f_ic else (WU - f_ic)
+    F = 1.0 if d <= h else (max(0.0, 1.0 - (d - h) / (edge - h))
+                            if edge > h else 0.0)
+    Po = float(Po)
+    sb = float(B[best]) if np.isfinite(B[best]) else 0.0
+    Pb = max(0.0, 1.0 - sb / sp)
+    o = (F * Po * Pb) ** (1.0 / 3.0) if F * Po * Pb > 0 else 0.0
+    rec.update(f_hat=fh, S_peak=sp, S_L=float(SL), S_R=float(SR),
+               S_bg=sb, F=F, P_own=Po, P_bg=Pb, o=o)
+    return rec
+
+
+def obs_oi(o):
+    return float(np.floor(10000.0 * float(o) + 0.5)) / 100.0
+
+
+OBS_PEAK_TOL = 1e-9
+
+
+def obs_peak_groups(keys):
+    groups, reps = [], []
+    for i, kk in enumerate(keys):
+        kk = [float(x) for x in kk]
+        for gi, rp in enumerate(reps):
+            if all(abs(a - b) <= OBS_PEAK_TOL * max(abs(a), abs(b))
+                   for a, b in zip(kk, rp)):
+                groups[gi].append(i)
+                break
+        else:
+            reps.append(kk)
+            groups.append([i])
+    return groups
+
+
+def obs_mean(ois, keys=None):
+    if not ois:
+        return 0.0
+    vals = list(ois)
+    if keys is not None:
+        if len(keys) != len(ois):
+            raise ValueError("obs_mean: %d values but %d peak keys"
+                             % (len(ois), len(keys)))
+        vals = []
+        for grp in obs_peak_groups(keys):
+            v = [float(ois[i]) for i in grp]
+            if all(x == v[0] for x in v):
+                vals.append(v[0])
+            else:
+                s = 0.0
+                for x in v:
+                    s += x
+                vals.append(s / len(v))
+    s = 0.0
+    for v in vals:
+        s += float(v)
+    return float(np.floor(100.0 * s / len(vals) + 0.5)) / 100.0
+
+
+def obs_curve_device(g, S, B, refs, bands, T_res, sigma=None):
+    g = np.asarray(g, float)
+    sig = OBS_SIGMA if sigma is None else float(sigma)
+    df = float(g[1] - g[0])
+    Ss = display_smooth(S, sig, df)
+    Bs = display_smooth(B, sig, df)
+    h = max(1.0 / float(T_res), df)
+    if len(refs) != len(bands):
+        raise ValueError("obs_curve_device: %d references but %d bands"
+                         % (len(refs), len(bands)))
+    pm = {}
+    for (lbl, fic), (fL, fU) in zip(refs, bands):
+        r = obs_curve_mode(g, Ss, Bs, float(fic), float(fL), float(fU), h)
+        oi = obs_oi(r["o"])
+        pm[str(lbl)] = dict(
+            oi=oi, f=round(float(fic), 6), band=obs_class(oi),
+            bnd=[round(float(fL), 6), round(float(fU), 6)],
+            fh=(None if r["f_hat"] is None else round(r["f_hat"], 4)),
+            ph=(None if r["S_peak"] is None else float("%.4g" % r["S_peak"])),
+            G=r["G"], F=r["F"], Po=r["P_own"], Pb=r["P_bg"],
+            W=[round(r["W"][0], 4), round(r["W"][1], 4)], h=round(h, 4),
+            SL=r["S_L"], SR=r["S_R"], Sb=r["S_bg"],
+            Ef=r["E_flex"], Eb=r["E_bg"])
+    return pm, (Ss, Bs)
+
+
+def curve_index_run(r, nf, sigma=None, seg_s=30.0):
+    if r.get("failed"):
+        return r
+    g = np.linspace(float(r["fmin"]), float(r["fmax"]), int(nf))
+    T = r.get("Tres") or min(float(r.get("Trec") or seg_s), float(seg_s))
+    refs = [(x[0], x[1]) for x in r.get("refs") or []]
+    bands = r.get("bands") or []
+    keys = [(float(fic), float(b[0]), float(b[1]))
+            for (_l, fic), b in zip(refs, bands)]
+    r["n_peak"] = len(obs_peak_groups(keys))
+    ps = []
+    for dev in ("watch", "phone"):
+        d = r.get(dev)
+        if not isinstance(d, dict):
+            continue
+        if not d.get("c"):
+            d.update(pmode={}, oi=0.0, pobs=0.0, band=obs_class(0.0),
+                     gated=True)
+            captures_from_index(d)
+            continue
+        S = display_decode(d["c"], d["pk"], len(g))
+        B = (display_decode(d["rc"], d["rpk"], len(g)) if d.get("rc")
+             else np.zeros(len(g)))
+        pm, _ = obs_curve_device(g, S, B, refs, bands, T, sigma)
+        d["pmode"] = pm
+        ois = [pm[str(l)]["oi"] for l, _f in refs]
+        d["oi"] = obs_mean(ois, keys)
+        d["pobs"] = d["oi"] / 100.0
+        d["band"] = obs_class(d["oi"])
+        d["gated"] = True
+        captures_from_index(d)
+        ps.append(d["pobs"])
+    if ps:
+        s = 0.0
+        for p in ps:
+            s += p
+        r["pobs"] = s / len(ps)
+    return r
 
 
 BG_DECK_KEYS = ("deck_E", "deck_rho", "deck_t", "deck_W",
@@ -2517,6 +2832,28 @@ def background_key(cfg):
     c.pop("rigid_base", None)
     c.pop("noise_draw", None)
     return _json.dumps(c, sort_keys=True, default=repr)
+
+
+def captures_from_index(d, t1=None, t2=None):
+    t1 = OBS_T1 if t1 is None else t1
+    t2 = OBS_T2 if t2 is None else t2
+    modes, caps, ferr, dhz = [], [], [], []
+    for lbl, m in (d.get("pmode") or {}).items():
+        if t1 is None or m.get("oi") is None or float(m["oi"]) < float(t1):
+            continue
+        if m.get("fh") is None or m.get("ph") is None:
+            continue
+        cls = "O" if (t2 is not None and float(m["oi"]) >= float(t2)) else "M"
+        modes.append(lbl)
+        caps.append([float(m["fh"]), float(m["ph"]), cls])
+        dhz.append(abs(float(m["fh"]) - float(m["f"])))
+        ferr.append(dhz[-1] / max(float(m["f"]), 1e-9))
+    d["modes"] = modes
+    d["caps"] = caps
+    d["n_cap"] = len(caps)
+    d["dhz"] = round(float(np.mean(dhz)), 4) if dhz else None
+    d["ferr"] = round(100 * float(np.mean(ferr)), 3) if ferr else None
+    return d
 
 
 def _csd_matrix(chans, fs, nperseg, noverlap):
@@ -2772,7 +3109,7 @@ def assess_modes_sv1(f, sv1, fe_freqs, mode_labels, cfg, prom_db=2.0):
     out = []
     for fn, lab in zip(fe_freqs, mode_labels):
         fn = float(fn)
-        rec = dict(f_fe=fn, label=str(lab), resolved=False, f_meas=None,
+        rec = dict(f_fe=fn, label=str(lab), observable=False, f_meas=None,
                    prom_db=0.0, reason="", k=None)
         if not (cfg["psd_fmin"] <= fn <= cfg["psd_fmax"]):
             rec["reason"] = "outside the analysis band"
@@ -2797,7 +3134,7 @@ def assess_modes_sv1(f, sv1, fe_freqs, mode_labels, cfg, prom_db=2.0):
             rec["reason"] = (f"peak only {rec['prom_db']:.1f} dB above the "
                              f"local floor")
         else:
-            rec["resolved"] = True
+            rec["observable"] = True
         out.append(rec)
     return out
 
@@ -2813,7 +3150,7 @@ def bench_curve(bench, label):
     return "all", np.asarray(bench["sv1"], float)
 
 
-def deck_modes(bench, cfg, prom_db=2.0):
+def benchmark_references(bench, cfg, prom_db=2.0):
     f = np.asarray(bench["f"], float)
     fe = list(bench["fe_freqs"]); lab = list(bench["mode_labels"])
     groups = {}
@@ -2826,10 +3163,24 @@ def deck_modes(bench, cfg, prom_db=2.0):
         for i, r in zip(ids, assess_modes_sv1(f, cv, [fe[i] for i in ids],
                                               [lab[i] for i in ids], cfg,
                                               prom_db)):
+            r["curve"] = nm
             recs[i] = r
-    return [(r["label"], float(r["f_meas"])) for r in recs
-            if r["resolved"] and r["f_meas"] is not None
-            and cfg["psd_fmin"] <= r["f_meas"] <= cfg["psd_fmax"]]
+    refs, bands, curves = [], [], []
+    ref_i = [i for i, r in enumerate(recs)
+             if r["observable"] and r["f_meas"] is not None
+             and cfg["psd_fmin"] <= r["f_meas"] <= cfg["psd_fmax"]]
+    mh = OBS_BAND_MAX_HZ
+    for i in ref_i:
+        r = recs[i]
+        _, cv = bench_curve(bench, r["label"])
+        others = [recs[j]["f_meas"] for j in ref_i
+                  if recs[j]["curve"] == r["curve"]]
+        refs.append((r["label"], float(r["f_meas"])))
+        bands.append(half_power_band(f, cv, r["f_meas"], others=others,
+                                     fmin=cfg.get("psd_fmin"),
+                                     fmax=cfg.get("psd_fmax"), max_half=mh))
+        curves.append(r["curve"])
+    return dict(assess=recs, refs=refs, bands=bands, curves=curves)
 
 
 def bench_excitation_lines(cfg):
@@ -2869,6 +3220,65 @@ def smooth_psd(P, df, sigma_hz):
                                    sigma=sigma_hz / df)
 
 
+def peak_sources(cfg, ens=None, fp=None):
+    out = []
+    cfg = apply_gait_stage(dict(cfg))
+    stand = is_standing(cfg)
+    fp = float(cfg["pacing_freq"] if fp is None else fp)
+    fmax = float(cfg["psd_fmax"])
+    if cfg.get("walk_force_on", True) and not stand:
+        k = 1
+        while k * 0.5 * fp <= fmax:
+            fl = k * 0.5 * fp
+            out.append((fl, "gait",
+                        f"{k}x f_p/2" + ("  (= walking force "
+                                         f"{k//2}x f_p)" if k % 2 == 0 else "")))
+            k += 1
+        if cfg.get("arm_swing_on", True) and fp <= fmax:
+            out.append((0.5 * fp, "arm", "arm swing, fore-aft (x)"))
+            out.append((fp, "arm", "arm swing, vertical (z)"))
+    if ens is not None:
+        fb3 = ens.get("f_body3")
+        if fb3:
+            for ax in AXES:
+                for j, fb in enumerate(np.atleast_1d(fb3.get(ax, [])),
+                                       start=1):
+                    if float(fb) <= fmax:
+                        out.append((float(fb), "body",
+                                    f"carrier mode {ax}{j}"))
+        else:
+            for j, fb in enumerate(np.atleast_1d(ens.get("f_body", [])),
+                                   start=1):
+                if float(fb) <= fmax:
+                    out.append((float(fb), "body", f"carrier mode {j}"))
+    v = 0.0 if stand else float(cfg["walk_speed"])
+    L = float(cfg["deck_L"])
+    fd = v / max(L, 1e-9)
+    for k in range(1, 4):
+        if fd > 0 and k * fd <= fmax:
+            out.append((k * fd, "drive", f"{k}x driving f_d = v/L"))
+    if cfg.get("crowd_on") and cfg.get("crowd_amp", 0) > 0 and \
+       cfg.get("crowd_type") in ("walk", "jump"):
+        for k in range(1, 7):
+            if k * cfg["crowd_freq"] <= fmax:
+                out.append((k * cfg["crowd_freq"], "crowd", f"{k}x f_crowd"))
+    for fl, tag in bench_excitation_lines(cfg):
+        out.append((float(fl), "shaker", tag))
+    if cfg.get("exc_type") == "sine" and cfg.get("exc_amp", 0) > 0:
+        out.append((float(cfg["exc_freq"]), "shaker", "external sine"))
+    if ens is not None and fd > 0 and 0.5 * fd >= float(cfg["psd_reject_hz"]):
+        for n, fm in enumerate(ens.get("fe_freqs", []), start=1):
+            if not (cfg["psd_fmin"] <= fm <= fmax):
+                continue
+            for sgn in (-1.0, 1.0):
+                fl = float(fm) + sgn * 0.5 * fd
+                if cfg["psd_fmin"] <= fl <= fmax:
+                    out.append((fl, "pair",
+                                f"{_mode_name(ens, n)} {'+' if sgn > 0 else '-'}"
+                                " f_d/2 (camel hump)"))
+    return sorted(out)
+
+
 DRAW = dict(deck="#9aa6b2", edge="#56677a", shaker="#d9902f", leg="#3f6ea6",
             leg2="#8db0d6", foot="#5b6573", trunk="#a8452c", link="#5b6573",
             arm="#c25a3c", arm2="#e2a07c", skin="#e6c3a0")
@@ -2876,6 +3286,11 @@ DRAW = dict(deck="#9aa6b2", edge="#56677a", shaker="#d9902f", leg="#3f6ea6",
 
 SENSOR_COLORS = {"hipL": "#2f6fb5", "hipR": "#6fa3dc", "wristL": "#d63b25",
                  "wristR": "#f08a5d", "torso": "#7f7f7f"}
+
+
+def _mode_name(base, n):
+    labels = base.get("mode_labels")
+    return labels[n - 1] if labels and n <= len(labels) else f"M{n}"
 
 
 def drawn_gait(cfg):

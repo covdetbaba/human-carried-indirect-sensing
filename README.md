@@ -25,15 +25,33 @@ A person carries a smartwatch and a smartphone across a flexible deck. This code
 
 **Output.** For each configuration: the deck spectrum under the shakers alone, and the spectrum of each device over 20 records. The same walk on a rigid floor is kept for comparison.
 
-## 2. Pages
+**Person's own lines.** The gait comb, arm swing, body modes and crossing rate are listed for every record, so a device peak can be told apart from the deck.
+
+**Observability index.** Each deck mode is scored on each device:
+
+OI = 100 · G · (F · P<sub>own</sub> · P<sub>bg</sub>)<sup>1/3</sup>
+
+F is frequency agreement with the deck mode, P<sub>own</sub> the peak's prominence on the device curve, P<sub>bg</sub> its height over the rigid-floor curve, and G is zero when the device curve does not rise above the rigid floor in the mode's band. A mode is unobservable below 27.5 and observable from 92.3.
+
+## 2. Explorer
+
+Three graphs: the deck, the smartwatch and the smartphone. For the swept parameter you can
+
+- click a peak on the deck graph to select a mode. It snaps to the nearest maximum and is checked on both devices.
+- see the selected mode shape move in 3D.
+- switch on the gait lines to see which device peaks come from the person.
+- read the observability index of every mode, with captured modes marked on the curves.
+- switch on the rigid-floor curves.
+
+## 3. Pages
 
 | Sheet | Page | What it shows |
 |---|---|---|
-| 02 | [Explorer, walking](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-walking.html) | 10 parameters, every pair stored. Deck and device spectra. |
+| 02 | [Explorer, walking](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-walking.html) | 10 parameters, every pair stored. Spectra, mode selection, mode shapes, gait lines, observability index. |
 | 03 | [Explorer, standing](https://covdetbaba.github.io/human-carried-indirect-sensing/explorer-standing.html) | The same for a person standing at mid-span. |
 | 04 to 07 | [Animations](https://covdetbaba.github.io/human-carried-indirect-sensing/walk-2d.html) | Walking and standing, side view and 3D. |
 
-## 3. Run it
+## 4. Run it
 
 Linux, macOS or WSL, Python 3.10 or newer.
 
@@ -60,20 +78,20 @@ python3 explorer.py               # run the whole walking study again (long)
 python3 animations.py             # rebuild the animation pages and the GIF
 ```
 
-## 4. Files
+## 5. Files
 
 | File | Role |
 |---|---|
-| `src/human_di.py` | The model: deck, person, coupled solver, ambient test, spectra. Settings are in `CONFIG`. |
+| `src/human_di.py` | The model: deck, person, coupled solver, ambient test, spectra, gait lines, observability index. Settings are in `CONFIG`. |
 | `src/deck_bench.py` | Runs and caches the ambient test of each deck. |
 | `src/explorer.py` | Parameter levels, the study, the local server. |
 | `src/explorer_page.py` | Writes the explorer page. |
 | `src/animations.py` | Writes the animation pages and the GIF. |
 | `src/sheet_style.py` | Page style. |
-| `data/explorer_walking.json` | 1207 stored walking configurations. |
+| `data/explorer_walking.json` | 1207 stored walking configurations: curves, deck modes, gait lines, index. |
 | `data/explorer_standing.json` | 1015 stored standing configurations. |
 
-## 5. Cite
+## 6. Cite
 
 ```bibtex
 @article{babazade_human_carried,

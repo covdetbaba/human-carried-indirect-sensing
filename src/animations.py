@@ -41,19 +41,19 @@ def trim(res, t0, t1):
     a["t"] = [t - t0 for t in a["t"]]
 
 
+RIPPLE_HZ = 1.2
+
+
 def shaker_arrows(res, k, z):
     cfg, anim = res["cfg"], res["anim"]
     xs = np.asarray(res["xs"])
     pts = hv.bench_force_points(cfg) if cfg.get("bench_force_live", True) else []
-    fk = anim["bench_f"][k] if k < len(anim.get("bench_f", [])) else []
+    t = float(anim["t"][k])
     out = []
     for i, pt in enumerate(pts):
-        F = float(fk[i]) if i < len(fk) else 0.0
         zt = float(np.interp(pt["x"], xs, z))
-        h = 0.18 + 0.7 * min(abs(F) / (2.0 * max(pt["amp"], 1.0)), 1.0)
-        base, top = zt + 0.05, zt + 0.05 + h
-        out.append(dict(x=pt["x"], F=F, tail=top if F <= 0 else base,
-                        tip=base if F <= 0 else top, down=F <= 0))
+        out.append(dict(x=pt["x"], deck=zt, tip=zt + 0.05, tail=zt + 0.5,
+                        ripple=(RIPPLE_HZ * t + i / 3.0) % 1.0))
     return out
 
 
@@ -120,19 +120,24 @@ def figure_2d(res):
         ar = shaker_arrows(res, k, z)
         sx, sy = [], []
         for a in ar:
-            sx += [a["x"], a["x"], None]
-            sy += [a["tail"], a["tip"] + (0.09 if a["down"] else -0.09), None]
+            sx += [a["x"], a["x"], None]; sy += [a["tail"], a["tip"] + 0.09, None]
         tr.append(go.Scatter(x=sx, y=sy, mode="lines",
                              line=dict(color=C["shaker"], width=3),
                              hoverinfo="skip"))
         tr.append(go.Scatter(x=[a["x"] for a in ar], y=[a["tip"] for a in ar],
                              mode="markers", marker=dict(
-                                 symbol=["triangle-down" if a["down"]
-                                         else "triangle-up" for a in ar],
-                                 size=11, color=C["shaker"]),
-                             hovertext=[f"shaker {i + 1}: {a['F']:+.0f} N"
-                                        for i, a in enumerate(ar)],
+                                 symbol="triangle-down", size=11,
+                                 color=C["shaker"]),
+                             hovertext=[f"shaker {i + 1}"
+                                        for i in range(len(ar))],
                              hoverinfo="text"))
+        tr.append(go.Scatter(x=[a["x"] for a in ar], y=[a["deck"] + 0.02 for a in ar],
+                             mode="markers", marker=dict(
+                                 symbol="circle-open", color=C["shaker"],
+                                 size=[8 + 22 * a["ripple"] for a in ar],
+                                 opacity=[1.0 - 0.85 * a["ripple"] for a in ar],
+                                 line=dict(width=2)),
+                             hoverinfo="skip"))
         for key, col, w in (("legR", C["leg2"], 5), ("armR", C["arm2"], 4),
                             ("legL", C["leg"], 6), ("trunk", C["trunk"], 9),
                             ("armL", C["arm"], 5)):
@@ -272,19 +277,19 @@ def write_gif(res, path):
                      fontweight="bold")
     ax = fig.add_axes([0.03, 0.40, 0.94, 0.47], facecolor=paper)
     ax2 = fig.add_axes([0.085, 0.10, 0.885, 0.22], facecolor=paper)
-    ax.set_xlim(-0.6, L + 0.6); ax.set_ylim(-0.48, 2.0); ax.set_aspect("equal")
+    ax.set_xlim(-0.6, L + 0.6); ax.set_ylim(-0.42, 2.0); ax.set_aspect("equal")
     ax.axis("off")
     deck, = ax.fill([], [], facecolor=C["deck"], edgecolor=C["edge"],
                     hatch="////", lw=1)
     ax.plot([0, L], [-t_sl - 0.07] * 2, "^", color=C["edge"], ms=11)
-    arrows = []
+    arrows, rings = [], []
     for a in shaker_arrows(res, 0, ps[0]["z"]):
         ar = FancyArrowPatch((a["x"], a["tail"]), (a["x"], a["tip"]),
                              arrowstyle="-|>,head_length=5,head_width=3.5",
                              color=C["shaker"], lw=2.2)
         ax.add_patch(ar); arrows.append(ar)
-    flabels = [ax.text(a["x"], -0.38, "", ha="center", fontsize=7.5,
-                       color="#8a5a10") for a in shaker_arrows(res, 0, ps[0]["z"])]
+        rings.append(ax.plot([], [], "o", mfc="none", mec=C["shaker"],
+                             mew=1.6)[0])
     lines = {k: ax.plot([], [], color=c, lw=w, solid_capstyle="round")[0]
              for k, c, w in (("legR", C["leg2"], 4), ("armR", C["arm2"], 3),
                              ("legL", C["leg"], 5), ("trunk", C["trunk"], 7),
@@ -310,9 +315,11 @@ def write_gif(res, path):
     def draw(k):
         p = ps[k]; z = p["z"]
         deck.set_xy(np.c_[np.r_[xs, xs[::-1]], np.r_[z, (z - t_sl)[::-1]]])
-        for ar, lb, a in zip(arrows, flabels, shaker_arrows(res, k, z)):
+        for ar, rg, a in zip(arrows, rings, shaker_arrows(res, k, z)):
             ar.set_positions((a["x"], a["tail"]), (a["x"], a["tip"]))
-            lb.set_text("S%d %+.0f N" % (flabels.index(lb) + 1, a["F"]))
+            rg.set_data([a["x"]], [a["deck"] + 0.02])
+            rg.set_markersize(3 + 11 * a["ripple"])
+            rg.set_alpha(1.0 - 0.85 * a["ripple"])
         for key, ln in lines.items():
             q = np.array(p[key]); ln.set_data(q[:, 0], q[:, 1])
         head.set_data([p["head"][0]], [p["head"][1]])
@@ -344,14 +351,14 @@ def main():
         write_anim_page(f"{stem}-2d.html", fig, ms, tt, title2, lead,
                         ("A 10 s window of the 60 s record. " if stand else "")
                         + "Deck motion is drawn %g times larger. The person is "
-                        "to scale. Squares are the devices. Arrows are the shaker "
-                        "forces, sized and pointed by the force at each instant." %
+                        "to scale. Squares are the devices. Arrows mark the three "
+                        "shakers, the rings show their load is always applied." %
                         res["cfg"]["anim_disp_scale"], False, "06" if stand else "04")
         fig, ms, tt = hv.figure_3d(res)
         write_anim_page(f"{stem}-3d.html", fig, ms, tt, title3, lead,
                         ("A 10 s window of the 60 s record. " if stand else "")
                         + "Drag to rotate, scroll to zoom. Deck motion is drawn "
-                        "%g times larger. Arrows follow the shaker forces." %
+                        "%g times larger. Arrows mark the three shakers." %
                         res["cfg"]["anim_disp_scale"],
                         True, "07" if stand else "05")
         if not stand:

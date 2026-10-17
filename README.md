@@ -11,7 +11,7 @@ A person carries a smartwatch and a smartphone across a flexible deck. This code
 | Paper | Indirect Sensing of Civil Structures through Human-Carried Mobile Devices: Effects of Structural Properties, Excitation, and Sensor Noise. Babazade and Lüleci, under review. |
 | Pages | [covdetbaba.github.io/human-carried-indirect-sensing](https://covdetbaba.github.io/human-carried-indirect-sensing/) |
 | Authors | Jovdat Babazade and Furkan Lüleci (supervisor), Department of Civil and Environmental Engineering, Louisiana State University |
-| License | All rights reserved. Free to run and study with credit. See [LICENSE](LICENSE). |
+| License | All rights reserved by Jovdat Babazade and Furkan Lüleci. Free to run and study with credit. See [LICENSE](LICENSE). |
 
 ## 1. What is modelled
 
@@ -106,4 +106,4 @@ python3 animations.py             # rebuild the animation pages and the GIF
 }
 ```
 
-© 2026 Jovdat Babazade. All rights reserved.
+© 2026 Jovdat Babazade and Furkan Lüleci. All rights reserved.

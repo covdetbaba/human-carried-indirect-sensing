@@ -243,7 +243,7 @@ def write_anim_page(fname, fig, frame_ms, times, title, lead, note, three, sheet
 <input type="range" id="pos" min="0" value="0" style="flex:1;min-width:160px"><span class="t" id="t"></span>
 <span>speed</span><input type="range" id="sp" min="0.1" max="3" step="0.1" value="1"><span id="spv">1.0x</span></div>
 <div class="figbox"><div id="plot"></div></div><p class="hint">{note}</p></section>
-<footer class="foot">© 2026 Jovdat Babazade. All rights reserved. Free to run and study with credit to the author.</footer>
+<footer class="foot">© 2026 Jovdat Babazade and Furkan Lüleci. All rights reserved. Free to run and study with credit to the authors.</footer>
 </div><script type="application/json" id="fig">{blob}</script><script>{ANIM_JS}</script></body></html>"""
     with open(os.path.join(DOCS, fname), "w", encoding="utf-8") as fh:
         fh.write(html)

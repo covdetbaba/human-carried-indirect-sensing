@@ -483,7 +483,7 @@ BODY = """
   <div class="scroll"><table class="t" id="modes"></table></div>
 </section>
 
-<footer class="foot">© 2026 Jovdat Babazade. All rights reserved. Free to run and study with credit to the author.</footer>
+<footer class="foot">© 2026 Jovdat Babazade and Furkan Lüleci. All rights reserved. Free to run and study with credit to the authors.</footer>
 </div>
 """
 

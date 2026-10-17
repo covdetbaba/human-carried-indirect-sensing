@@ -3446,7 +3446,7 @@ def figure_3d(res):
     bf_type = cfg.get("bench_force_type", "random")
     bf_col = DRAW["shaker"]
 
-    stride = max(1, len(anim["t"]) // 120)
+    stride = max(1, len(anim["t"]) // 300)
     ks = list(range(0, len(anim["t"]), stride))
 
     def wfun_frame(k):
@@ -3549,16 +3549,19 @@ def figure_3d(res):
         bfk3 = anim["bench_f"][k] if k < len(anim.get("bench_f", [])) else []
         for pi, pt in enumerate(bench_pts):
             zt = zdeck(k, pt["x"], pt["y"])
-            Fnow = abs(bfk3[pi]) if pi < len(bfk3) else pt["amp"]
-            puls = 1.0 + 0.15 * np.tanh(
-                (Fnow - pt["amp"]) / max(pt["amp"], 1.0))
-            hlen = 0.60 * puls
+            Fs = float(bfk3[pi]) if pi < len(bfk3) else 0.0
+            hlen = 0.18 + 0.7 * min(abs(Fs) / (2.0 * max(pt["amp"], 1.0)), 1.0)
             base = zt + 0.06; top = base + hlen
             sx += [pt["x"], pt["x"], None]
             sy += [pt["y"], pt["y"], None]
-            sz += [top, base + 0.22, None]
-            cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(base + 0.14)
-            cw.append(-1.0)
+            if Fs <= 0:
+                sz += [top, base + 0.16, None]
+                cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(base + 0.02)
+                cw.append(-1.0)
+            else:
+                sz += [base, top - 0.14, None]
+                cx3.append(pt["x"]); cy3.append(pt["y"]); cz3.append(top)
+                cw.append(1.0)
             bxs.append(pt["x"]); bys.append(pt["y"]); bzs.append(base)
             lx.append(pt["x"]); ly.append(pt["y"]); lz.append(top + 0.12)
             lab = f"shaker {pi + 1}"

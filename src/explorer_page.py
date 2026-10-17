@@ -54,7 +54,7 @@ var RUNS=JSON.parse(document.getElementById('runs').textContent);
 var P=M.params, NF=M.nf, F=[], i;
 for(i=0;i<NF;i++){F.push(M.fmin+(M.fmax-M.fmin)*i/(NF-1));}
 var DF=(M.fmax-M.fmin)/(NF-1), CAP=0.35, PROM=2.0;
-var state={sweep:P[0],sel:{},rigid:false,gait:false,caps:true,hidden:{},mark:null,picks:[],ms:null};
+var state={sweep:P[0],sel:{},rigid:false,gait:false,caps:true,hidden:{},mark:null,picks:[],ms:null,sigma:M.smooth};
 P.forEach(function(p){state.sel[p]=M.base[p];});
 var $=function(id){return document.getElementById(id);};
 var CACHE={};
@@ -72,13 +72,14 @@ function raw(s,pk){
   return y;
 }
 function smooth(y){
-  var s=M.smooth/DF,h=Math.ceil(3*s),w=[],k,j,a,b,o=new Float64Array(y.length);
+  if(!(state.sigma>0)){return y;}
+  var s=state.sigma/DF,h=Math.ceil(3*s),w=[],k,j,a,b,o=new Float64Array(y.length);
   for(k=-h;k<=h;k++){w.push(Math.exp(-0.5*k*k/(s*s)));}
   for(j=0;j<y.length;j++){a=0;b=0;for(k=-h;k<=h;k++){var v=y[j+k];if(v>0){a+=w[k+h]*v;b+=w[k+h];}}o[j]=b?a/b:NaN;}
   return o;
 }
 function curve(key,dev,fld,sm){
-  var id=key+'|'+dev+'|'+fld+'|'+(sm?1:0);
+  var id=key+'|'+dev+'|'+fld+'|'+(sm?state.sigma:'raw');
   if(!CACHE[id]){var r=RUNS[key],src=dev==='deck'?r:r[dev];
     var y=raw(src[fld==='c'?(dev==='deck'?'cb':'c'):'rc'],src[fld==='c'?(dev==='deck'?'pkb':'pk'):'rpk']);
     CACHE[id]=sm?smooth(y):y;}
@@ -144,7 +145,8 @@ function draw(){
         hovertemplate:lab(c.i)+'<br>%{x:.2f} Hz<br>%{y:.3e}<extra></extra>',showlegend:false});
       if(state.caps&&dev!=='deck'){
         var cp=c.run[dev].caps||[];
-        if(cp.length){data.push({x:cp.map(function(q){return q[0];}),y:cp.map(function(q){return q[1];}),mode:'markers',
+        var yc=curve(c.key,dev,'c',true);
+        if(cp.length){data.push({x:cp.map(function(q){return q[0];}),y:cp.map(function(q){var j=Math.round((q[0]-M.fmin)/DF);return yc[Math.max(0,Math.min(NF-1,j))];}),mode:'markers',
           marker:{symbol:cp.map(function(q){return q[2]==='O'?'diamond':'diamond-open';}),size:9,color:cols[c.i],line:{color:cols[c.i],width:1.5}},
           hovertemplate:lab(c.i)+'<br>captured %{x:.2f} Hz<extra></extra>',showlegend:false});}
       }
@@ -352,6 +354,10 @@ function controls(){
 function toggle(id,key,name){$(id).onclick=function(){state[key]=!state[key];this.classList.toggle('on',state[key]);this.textContent=name+': '+(state[key]?'on':'off');draw();};}
 toggle('rigid','rigid','Rigid floor');toggle('gaitbtn','gait','Gait lines');toggle('capbtn','caps','Captured modes');
 $('mark').onchange=function(){state.mark=parseInt(this.value,10);draw();};
+$('sig').oninput=function(){state.sigma=parseFloat(this.value);$('sigv').textContent=state.sigma>0?state.sigma.toFixed(2)+' Hz':'off';};
+$('sig').onchange=function(){CACHE={};draw();};
+$('allon').onclick=function(){state.hidden={};draw();};
+$('alloff').onclick=function(){M.labels[state.sweep].forEach(function(_,k){state.hidden[k]=true;});draw();};
 $('reset').onclick=function(){P.forEach(function(p){state.sel[p]=M.base[p];});state.hidden={};state.mark=null;state.picks=[];state.ms=null;controls();draw();};
 $('compute').onclick=compute;
 if(window.matchMedia){window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);}
@@ -391,8 +397,9 @@ BODY = """
   <h2><span class="num">2</span>Spectra</h2>
   <p class="note" id="note"></p>
   <div class="bar"><button id="rigid">Rigid floor: off</button><button id="gaitbtn">Gait lines: off</button><button id="capbtn" class="on">Captured modes: on</button>
-    <span class="lbl">detail level</span><select id="mark"></select></div>
-  <div class="bar"><div class="chips" id="chips"></div></div>
+    <span class="lbl">detail level</span><select id="mark"></select>
+    <span class="lbl">smoothing</span><input type="range" id="sig" min="0" max="0.5" step="0.01" value="__SIG__" style="width:130px;accent-color:var(--red)"><span class="lbl" id="sigv">__SIG__ Hz</span></div>
+  <div class="bar"><button id="allon">Show all</button><button id="alloff">Hide all</button><div class="chips" id="chips"></div></div>
   <div class="plots">
     <div class="cell"><span class="tag">A / DECK</span><div class="plot" id="plot0"></div></div>
     <div class="cell"><span class="tag">B / SMARTWATCH (WRIST)</span><div class="plot" id="plot1"></div></div>
@@ -418,7 +425,7 @@ BODY = """
 
 <section>
   <h2><span class="num">5</span>Observability</h2>
-  <div class="eq">OI = 100 · G · (F · P<sub>own</sub> · P<sub>bg</sub>)<sup>1/3</sup> &nbsp; per mode and device. &nbsp; Unobservable below __T1__, observable from __T2__.</div>
+  <div class="eq">OI = 100 · G · (F · P<sub>own</sub> · P<sub>bg</sub>)<sup>1/3</sup> &nbsp; per mode and device. &nbsp; Unobservable below __T1__, observable from __T2__. Scored at σ = __SIG__ Hz.</div>
   <p class="hint">F is frequency agreement with the deck mode. P<sub>own</sub> is the peak's prominence on the device curve. P<sub>bg</sub> is its height over the rigid-floor curve. G is zero when the device curve does not rise above the rigid floor in the mode's band. A device's OI is the mean over the deck modes.</p>
   <div class="two">
     <div class="scroll"><table class="t" id="obs1"></table></div>
@@ -455,6 +462,7 @@ def write_page(path, meta, runs):
         "__N__": str(len(slim)),
         "__FMIN__": f"{meta['fmin']:g}", "__FMAX__": f"{meta['fmax']:g}",
         "__T1__": f"{meta['t1']:g}", "__T2__": f"{meta['t2']:g}",
+        "__SIG__": f"{meta['smooth']:.2f}",
         "__CMD__": "Run locally:  cd src  &&  " + meta["cmd"],
         "__WCUR__": "" if stand else ' class="cur"',
         "__SCUR__": ' class="cur"' if stand else "",

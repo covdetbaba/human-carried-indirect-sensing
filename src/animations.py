@@ -18,10 +18,43 @@ C = hv.DRAW
 MAX_FRAMES = 360
 
 
+STAND_WINDOW = (30.0, 40.0)
+
+
 def simulate(mode):
     hv.SAVE_DIR = tempfile.mkdtemp(prefix="deck_anim_")
     cfg = base_cfg(mode)
-    return hv.run_case(cfg, record_anim=True)
+    cfg["anim_max_frames"] = 100000
+    res = hv.run_case(cfg, record_anim=True)
+    if mode == "standing":
+        trim(res, *STAND_WINDOW)
+    return res
+
+
+def trim(res, t0, t1):
+    a = res["anim"]
+    keep = [k for k, t in enumerate(a["t"]) if t0 <= t <= t1]
+    n = len(a["t"])
+    for key, v in list(a.items()):
+        if isinstance(v, list) and len(v) == n:
+            a[key] = [v[k] for k in keep]
+    a["t"] = [t - t0 for t in a["t"]]
+
+
+def shaker_arrows(res, k, z):
+    cfg, anim = res["cfg"], res["anim"]
+    xs = np.asarray(res["xs"])
+    pts = hv.bench_force_points(cfg) if cfg.get("bench_force_live", True) else []
+    fk = anim["bench_f"][k] if k < len(anim.get("bench_f", [])) else []
+    out = []
+    for i, pt in enumerate(pts):
+        F = float(fk[i]) if i < len(fk) else 0.0
+        zt = float(np.interp(pt["x"], xs, z))
+        h = 0.18 + 0.7 * min(abs(F) / (2.0 * max(pt["amp"], 1.0)), 1.0)
+        base, top = zt + 0.05, zt + 0.05 + h
+        out.append(dict(x=pt["x"], F=F, tail=top if F <= 0 else base,
+                        tip=base if F <= 0 else top, down=F <= 0))
+    return out
 
 
 def poses(res):
@@ -68,7 +101,6 @@ def figure_2d(res):
     cfg, anim = res["cfg"], res["anim"]
     xs = np.asarray(res["xs"]); L = cfg["deck_L"]
     t_sl = hv.section_depth(cfg)
-    pts = hv.bench_force_points(cfg) if cfg.get("bench_force_live", True) else []
     ps = poses(res)
     ks = list(range(0, len(ps), max(1, len(ps) // MAX_FRAMES)))
 
@@ -85,21 +117,21 @@ def figure_2d(res):
                                           solidity=0.12),
                          line=dict(color=C["edge"], width=1.2),
                          hoverinfo="skip")]
+        ar = shaker_arrows(res, k, z)
         sx, sy = [], []
-        for pt in pts:
-            zt = float(np.interp(pt["x"], xs, z))
-            sx += [pt["x"], pt["x"], None]; sy += [zt + 0.55, zt + 0.08, None]
+        for a in ar:
+            sx += [a["x"], a["x"], None]
+            sy += [a["tail"], a["tip"] + (0.09 if a["down"] else -0.09), None]
         tr.append(go.Scatter(x=sx, y=sy, mode="lines",
                              line=dict(color=C["shaker"], width=3),
                              hoverinfo="skip"))
-        tr.append(go.Scatter(x=[pt["x"] for pt in pts],
-                             y=[float(np.interp(pt["x"], xs, z)) + 0.1
-                                for pt in pts],
+        tr.append(go.Scatter(x=[a["x"] for a in ar], y=[a["tip"] for a in ar],
                              mode="markers", marker=dict(
-                                 symbol="triangle-down", size=11,
-                                 color=C["shaker"]),
-                             hovertext=[f"shaker {i + 1}"
-                                        for i in range(len(pts))],
+                                 symbol=["triangle-down" if a["down"]
+                                         else "triangle-up" for a in ar],
+                                 size=11, color=C["shaker"]),
+                             hovertext=[f"shaker {i + 1}: {a['F']:+.0f} N"
+                                        for i, a in enumerate(ar)],
                              hoverinfo="text"))
         for key, col, w in (("legR", C["leg2"], 5), ("armR", C["arm2"], 4),
                             ("legL", C["leg"], 6), ("trunk", C["trunk"], 9),
@@ -166,7 +198,7 @@ function fit(){
   if(D.three){return Promise.resolve();}
   var fl=$('plot')._fullLayout;if(!fl){return Promise.resolve();}
   var xr=D.fig.layout.xaxis.range,yr=D.fig.layout.yaxis.range,w=fl.width-fl.margin.l-fl.margin.r;
-  return Plotly.relayout('plot',{height:Math.max(200,w*(yr[1]-yr[0])/(xr[1]-xr[0])+fl.margin.t+fl.margin.b),
+  return Plotly.relayout('plot',{height:Math.max(150,w*(yr[1]-yr[0])/(xr[1]-xr[0])+fl.margin.t+fl.margin.b),
     'xaxis.range':xr,'yaxis.range':yr});
 }
 Plotly.newPlot('plot',D.fig.data,D.fig.layout,{displaylogo:false,responsive:true}).then(function(){
@@ -217,29 +249,42 @@ def write_gif(res, path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation, PillowWriter
+    from matplotlib.patches import FancyArrowPatch, Rectangle
     cfg = res["cfg"]; L = cfg["deck_L"]; xs = np.asarray(res["xs"])
     t_sl = hv.section_depth(cfg); ps = poses(res); t = res["t"]
     watch = res["acc3"][:, 3, 2]; phone = res["acc3"][:, 0, 2]
-    paper, ink = "#f2eee3", "#1a2532"
+    paper, ink, red = "#f2eee3", "#1a2532", "#b83a1f"
     plt.rcParams.update({"font.family": "DejaVu Sans Mono", "font.size": 9,
                          "text.color": ink, "axes.labelcolor": ink,
                          "xtick.color": ink, "ytick.color": ink,
-                         "axes.edgecolor": ink})
-    fig = plt.figure(figsize=(8, 3.9), dpi=90, facecolor=paper)
-    ax = fig.add_axes([0.03, 0.42, 0.94, 0.5], facecolor=paper)
-    ax2 = fig.add_axes([0.09, 0.12, 0.88, 0.22], facecolor=paper)
-    ax.set_xlim(-0.8, L + 0.8); ax.set_ylim(-0.45, 2.05); ax.set_aspect("equal")
+                         "axes.edgecolor": ink, "axes.linewidth": 0.8})
+    fig = plt.figure(figsize=(8.4, 4.5), dpi=100, facecolor=paper)
+    fig.add_artist(Rectangle((0.008, 0.012), 0.984, 0.976, transform=fig.transFigure,
+                             fill=False, lw=1.4, ec=ink))
+    fig.add_artist(Rectangle((0.008, 0.885), 0.984, 0.103, transform=fig.transFigure,
+                             fill=False, lw=0.8, ec=ink))
+    fig.text(0.025, 0.925, "PERSON ON A FLEXIBLE DECK", fontsize=12,
+             fontweight="bold")
+    fig.text(0.025, 0.897, "walking %g m/s  |  %g m span  |  three ambient shakers"
+             "  |  deck motion x%g" % (cfg["walk_speed"], L, cfg["anim_disp_scale"]),
+             fontsize=7.5, color="#4d5966")
+    clock = fig.text(0.975, 0.925, "", fontsize=11, color=red, ha="right",
+                     fontweight="bold")
+    ax = fig.add_axes([0.03, 0.40, 0.94, 0.47], facecolor=paper)
+    ax2 = fig.add_axes([0.085, 0.10, 0.885, 0.22], facecolor=paper)
+    ax.set_xlim(-0.6, L + 0.6); ax.set_ylim(-0.48, 2.0); ax.set_aspect("equal")
     ax.axis("off")
-    fig.text(0.03, 0.94, "PERSON ON A FLEXIBLE DECK", fontsize=11,
-             fontweight="bold", color=ink)
-    fig.text(0.97, 0.94, "deck motion x%g" % cfg["anim_disp_scale"],
-             fontsize=8, color="#b83a1f", ha="right")
     deck, = ax.fill([], [], facecolor=C["deck"], edgecolor=C["edge"],
                     hatch="////", lw=1)
-    ax.plot([0, L], [-t_sl - 0.06] * 2, "^", color=C["edge"], ms=10)
-    for pt in (hv.bench_force_points(cfg) if cfg.get("bench_force_live", True) else []):
-        ax.annotate("", xy=(pt["x"], 0.08), xytext=(pt["x"], 0.6),
-                    arrowprops=dict(arrowstyle="-|>", color=C["shaker"], lw=1.6))
+    ax.plot([0, L], [-t_sl - 0.07] * 2, "^", color=C["edge"], ms=11)
+    arrows = []
+    for a in shaker_arrows(res, 0, ps[0]["z"]):
+        ar = FancyArrowPatch((a["x"], a["tail"]), (a["x"], a["tip"]),
+                             arrowstyle="-|>,head_length=5,head_width=3.5",
+                             color=C["shaker"], lw=2.2)
+        ax.add_patch(ar); arrows.append(ar)
+    flabels = [ax.text(a["x"], -0.38, "", ha="center", fontsize=7.5,
+                       color="#8a5a10") for a in shaker_arrows(res, 0, ps[0]["z"])]
     lines = {k: ax.plot([], [], color=c, lw=w, solid_capstyle="round")[0]
              for k, c, w in (("legR", C["leg2"], 4), ("armR", C["arm2"], 3),
                              ("legL", C["leg"], 5), ("trunk", C["trunk"], 7),
@@ -250,29 +295,37 @@ def write_gif(res, path):
             for s in ("hipR", "wristR", "hipL", "wristL")}
     lim = 1.1 * max(abs(watch).max(), abs(phone).max())
     ax2.set_xlim(t[0], t[-1]); ax2.set_ylim(-lim, lim)
-    ax2.set_xlabel("time (s)"); ax2.set_ylabel("z (m/s²)")
+    ax2.set_xlabel("time (s)", labelpad=1); ax2.set_ylabel("z (m/s²)")
+    ax2.grid(color=ink, alpha=0.12, lw=0.6)
     for side in ("top", "right"):
         ax2.spines[side].set_visible(False)
-    lw_, = ax2.plot([], [], color=hv.SENSOR_COLORS["wristL"], lw=0.8,
+    lw_, = ax2.plot([], [], color=hv.SENSOR_COLORS["wristL"], lw=0.9,
                     label="watch, left wrist")
-    lp_, = ax2.plot([], [], color=hv.SENSOR_COLORS["hipL"], lw=0.8,
+    lp_, = ax2.plot([], [], color=hv.SENSOR_COLORS["hipL"], lw=0.9,
                     label="phone, left hip")
-    ax2.legend(loc="lower right", bbox_to_anchor=(1, 1), ncol=2, fontsize=8,
-               frameon=False)
+    cur = ax2.axvline(t[0], color=ink, lw=0.8, alpha=0.6)
+    ax2.legend(loc="lower right", bbox_to_anchor=(1, 0.98), ncol=2, fontsize=8,
+               frameon=False, handlelength=1.5)
 
     def draw(k):
         p = ps[k]; z = p["z"]
         deck.set_xy(np.c_[np.r_[xs, xs[::-1]], np.r_[z, (z - t_sl)[::-1]]])
+        for ar, lb, a in zip(arrows, flabels, shaker_arrows(res, k, z)):
+            ar.set_positions((a["x"], a["tail"]), (a["x"], a["tip"]))
+            lb.set_text("S%d %+.0f N" % (flabels.index(lb) + 1, a["F"]))
         for key, ln in lines.items():
-            a = np.array(p[key]); ln.set_data(a[:, 0], a[:, 1])
+            q = np.array(p[key]); ln.set_data(q[:, 0], q[:, 1])
         head.set_data([p["head"][0]], [p["head"][1]])
         for s, mk in sens.items():
             mk.set_data([p["sensors"][s][0]], [p["sensors"][s][1]])
         m = t <= p["t"]
         lw_.set_data(t[m], watch[m]); lp_.set_data(t[m], phone[m])
+        cur.set_xdata([p["t"], p["t"]])
+        clock.set_text("t = %.2f s" % p["t"])
         return []
-    FuncAnimation(fig, draw, frames=range(0, len(ps), 2)).save(
-        path, writer=PillowWriter(fps=12.5))
+    dt = float(np.median(np.diff([q["t"] for q in ps])))
+    FuncAnimation(fig, draw, frames=range(len(ps))).save(
+        path, writer=PillowWriter(fps=round(1.0 / dt)))
     print("  wrote", os.path.relpath(path, ROOT))
 
 
@@ -289,13 +342,17 @@ def main():
                 "One crossing at 1.5 m/s while three shakers excite the deck.")
         fig, ms, tt = figure_2d(res)
         write_anim_page(f"{stem}-2d.html", fig, ms, tt, title2, lead,
-                        "Deck motion is drawn %g times larger. The person is "
-                        "to scale. Squares are the devices." %
+                        ("A 10 s window of the 60 s record. " if stand else "")
+                        + "Deck motion is drawn %g times larger. The person is "
+                        "to scale. Squares are the devices. Arrows are the shaker "
+                        "forces, sized and pointed by the force at each instant." %
                         res["cfg"]["anim_disp_scale"], False, "06" if stand else "04")
         fig, ms, tt = hv.figure_3d(res)
         write_anim_page(f"{stem}-3d.html", fig, ms, tt, title3, lead,
-                        "Drag to rotate, scroll to zoom. Deck motion is drawn "
-                        "%g times larger." % res["cfg"]["anim_disp_scale"],
+                        ("A 10 s window of the 60 s record. " if stand else "")
+                        + "Drag to rotate, scroll to zoom. Deck motion is drawn "
+                        "%g times larger. Arrows follow the shaker forces." %
+                        res["cfg"]["anim_disp_scale"],
                         True, "07" if stand else "05")
         if not stand:
             write_gif(res, os.path.join(ROOT, "media", "crossing.gif"))

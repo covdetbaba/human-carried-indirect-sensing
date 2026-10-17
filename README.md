@@ -42,6 +42,8 @@ Three graphs: the deck, the smartwatch and the smartphone. For the swept paramet
 - switch on the gait lines to see which device peaks come from the person.
 - read the observability index of every mode, with captured modes marked on the curves.
 - switch on the rigid-floor curves.
+- change the display smoothing. 0 turns it off. The index is scored at 0.06 Hz.
+- show or hide all curves at once.
 
 ## 3. Pages
 

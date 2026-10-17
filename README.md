@@ -2,6 +2,8 @@
 
 **Jovdat Babazade and Furkan Lüleci** · Louisiana State University
 
+Contributors: [@covdetbaba](https://github.com/covdetbaba) (Jovdat Babazade) · [@furkan-luleci](https://github.com/furkan-luleci) (Furkan Lüleci)
+
 A person carries a smartwatch and a smartphone across a flexible deck. This code simulates the person and the deck together and records what the devices measure.
 
 ![A person walks across the deck. Below, the vertical acceleration of the left wrist and left hip devices.](media/crossing.gif)
